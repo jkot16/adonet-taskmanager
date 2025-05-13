@@ -9,6 +9,8 @@ namespace Test1JakubKotS30964.Services
         private readonly string _cs;
         public WorkService(IConfiguration cfg) => _cs = cfg.GetConnectionString("DefaultConnection");
 
+        
+        // check if member exists
         public async Task<bool> TeamMemberExists(int memberId, CancellationToken ct)
         {
             const string sql = "SELECT 1 FROM TeamMember WHERE IdTeamMember = @id";
@@ -18,7 +20,7 @@ namespace Test1JakubKotS30964.Services
             cmd.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = memberId });
             return await cmd.ExecuteScalarAsync(ct) != null;
         }
-
+        // get all team member tasks (assigned and created)
         public async Task<GetTeamMemberResponse> GetTeamMemberTasks(int memberId, CancellationToken ct)
         {
             await using var conn = new SqlConnection(_cs);
@@ -27,20 +29,24 @@ namespace Test1JakubKotS30964.Services
             var dto = new GetTeamMemberResponse { MemberId = memberId };
             
             const string sqlMember = @"
-            SELECT FirstName, LastName, Email
+            SELECT IdTeamMember, FirstName, LastName, Email
             FROM TeamMember
             WHERE IdTeamMember = @id";
+
             await using (var cmd1 = new SqlCommand(sqlMember, conn))
             {
-                cmd1.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = memberId });
+                cmd1.Parameters.AddWithValue("@id", memberId);
                 await using var reader = await cmd1.ExecuteReaderAsync(ct);
                 if (!await reader.ReadAsync(ct))
                     throw new KeyNotFoundException($"Team member with id {memberId} not found");
-                dto.FirstName = (string)reader["FirstName"];
-                dto.LastName  = (string)reader["LastName"];
+
+                dto.MemberId = (int)reader["IdTeamMember"];
+                dto.FirstName= (string)reader["FirstName"];
+                dto.LastName = (string)reader["LastName"];
                 dto.Email = (string)reader["Email"];
                 await reader.CloseAsync();
             }
+
             
             const string sqlAssigned = @"
             SELECT 
@@ -48,8 +54,8 @@ namespace Test1JakubKotS30964.Services
             p.Name   AS ProjectName,
             tt.Name  AS TaskTypeName
             FROM [Task] t
-            JOIN Project   p  ON t.IdProject  = p.IdProject
-            JOIN TaskType  tt ON t.IdTaskType = tt.IdTaskType
+            JOIN Project p ON t.IdProject = p.IdProject
+            JOIN TaskType tt ON t.IdTaskType = tt.IdTaskType
             WHERE t.IdAssignedTo = @id
             ORDER BY t.Deadline DESC";
             await using (var cmd2 = new SqlCommand(sqlAssigned, conn))
@@ -60,10 +66,10 @@ namespace Test1JakubKotS30964.Services
                 {
                     dto.AssignedTasks.Add(new GetTaskResponse
                     {
-                        Name         = (string)rdr2["Name"],
-                        Description  = (string)rdr2["Description"],
-                        Deadline     = (DateTime)rdr2["Deadline"],
-                        ProjectName  = (string)rdr2["ProjectName"],
+                        Name= (string)rdr2["Name"],
+                        Description= (string)rdr2["Description"],
+                        Deadline= (DateTime)rdr2["Deadline"],
+                        ProjectName = (string)rdr2["ProjectName"],
                         TaskTypeName = (string)rdr2["TaskTypeName"],
                     });
                 }
@@ -76,8 +82,8 @@ namespace Test1JakubKotS30964.Services
             p.Name   AS ProjectName,
             tt.Name  AS TaskTypeName
             FROM [Task] t
-            JOIN Project   p  ON t.IdProject  = p.IdProject
-            JOIN TaskType  tt ON t.IdTaskType = tt.IdTaskType
+            JOIN Project p  ON t.IdProject  = p.IdProject
+            JOIN TaskType tt ON t.IdTaskType = tt.IdTaskType
             WHERE t.IdCreator = @id
             ORDER BY t.Deadline DESC";
             await using (var cmd3 = new SqlCommand(sqlCreated, conn))
@@ -88,10 +94,10 @@ namespace Test1JakubKotS30964.Services
                 {
                     dto.CreatedTasks.Add(new GetTaskResponse
                     {
-                        Name         = (string)rdr3["Name"],
-                        Description  = (string)rdr3["Description"],
-                        Deadline     = (DateTime)rdr3["Deadline"],
-                        ProjectName  = (string)rdr3["ProjectName"],
+                        Name = (string)rdr3["Name"],
+                        Description = (string)rdr3["Description"],
+                        Deadline = (DateTime)rdr3["Deadline"],
+                        ProjectName = (string)rdr3["ProjectName"],
                         TaskTypeName = (string)rdr3["TaskTypeName"],
                     });
                 }
@@ -100,7 +106,8 @@ namespace Test1JakubKotS30964.Services
 
             return dto;
         }
-
+        
+        // check if project even exists
         public async Task<bool> ProjectExists(int projectId, CancellationToken ct)
         {
             const string sql = "SELECT 1 FROM Project WHERE IdProject = @id";
@@ -110,6 +117,8 @@ namespace Test1JakubKotS30964.Services
             cmd.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = projectId });
             return await cmd.ExecuteScalarAsync(ct) != null;
         }
+        
+        // delete project using transaction
 
         public async Task DeleteProject(int projectId, CancellationToken ct)
         {
@@ -130,7 +139,7 @@ namespace Test1JakubKotS30964.Services
                     cmd2.Parameters.Add(new SqlParameter("@id", SqlDbType.Int) { Value = projectId });
                     var rows = await cmd2.ExecuteNonQueryAsync(ct);
                     if (rows == 0)
-                        throw new KeyNotFoundException($"Project with id {projectId} not found");
+                        throw new KeyNotFoundException($"Project with id {projectId} doesnt exists");
                 }
                 tx.Commit();
             }

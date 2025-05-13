@@ -18,7 +18,7 @@ namespace Test1JakubKotS30964.Controllers
         public async Task<IActionResult> GetMemberTasks(int id, CancellationToken cancellationToken)
         {
             if (!await _svc.TeamMemberExists(id, cancellationToken))
-                return NotFound(new ErrorResponse { Error = $"Team member with id {id} not found" });
+                return NotFound(new ErrorResponse { Error = $"Team member with id {id} doesnt exits" });
 
             var dto = await _svc.GetTeamMemberTasks(id, cancellationToken);
             return Ok(dto);
@@ -29,7 +29,7 @@ namespace Test1JakubKotS30964.Controllers
         public async Task<IActionResult> DeleteProject(int id, CancellationToken ct)
         {
             if (!await _svc.ProjectExists(id, ct))
-                return NotFound(new ErrorResponse { Error = $"Project with id {id} not found" });
+                return NotFound(new ErrorResponse { Error = $"Project with id {id} doesnt exists" });
 
             await _svc.DeleteProject(id, ct);
             return NoContent();
