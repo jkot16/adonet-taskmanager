@@ -1,4 +1,4 @@
-# 🧠 Task Manager API (APBD Test)
+# Task Manager API (APBD Test)
 
 REST API for managing team tasks and projects using **ASP.NET Core** and **ADO.NET** with parameterized SQL queries.
 
